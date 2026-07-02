@@ -1872,7 +1872,7 @@ run_manuscript <- function(
     outdir = outdir,
     main_args = list(
       n_grid = c(100, 200, 400),
-      R_rep = 10,
+      R_rep = 200,
       bootstrap_B = 2,
       robust_bootstrap_B = 2,
       seed = 7307
@@ -1880,7 +1880,7 @@ run_manuscript <- function(
     supp_contam_args = list(
       n_grid = c(100, 200, 400),
       pi_grid = c(0, 0.10, 0.20, 0.30),
-      R_rep = 10,
+      R_rep = 200,
       bootstrap_B = 2,
       robust_bootstrap_B = 2,
       seed = 8307
