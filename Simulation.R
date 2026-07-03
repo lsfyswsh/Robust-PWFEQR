@@ -39,12 +39,6 @@ make_beta0 <- function(p, signal_pattern = c(1, -1, 0.7, 0.5), signal_scale = 1)
   beta0
 }
 
-hd <- run_highdim_sparse(
-  outdir = "/Users/Desktop/highdim_outputs",
-  R_rep = 200,
-  seed = 6207
-)
-
 toeplitz_cov <- function(p, rho_x) {
   idx <- seq_len(p)
   rho_x ^ abs(outer(idx, idx, "-"))
@@ -71,11 +65,6 @@ sigma_fun <- function(
     sigma_x2 * abs(X[, min(2, ncol(X))]) +
     sigma_time * time_index / T +
     sigma_interaction * abs(X[, 1]) * time_index / T
-}
-
-mixture_rnorm <- function(n, pi_contam, kappa) {
-  mix <- stats::rbinom(n, size = 1, prob = pi_contam)
-  stats::rnorm(n, sd = ifelse(mix == 1, kappa, 1))
 }
 
 standardized_error <- function(n, dist = c("normal", "t"), df = 4) {
@@ -1365,73 +1354,6 @@ write_master_manifest <- function(results_named, outdir) {
   }
 }
 
-plot_contamination_curves <- function(estimation_df, inference_df, out_file) {
-  if (!nrow(estimation_df) || !"pi" %in% names(estimation_df)) {
-    stop("Contamination summaries with a 'pi' column are required.")
-  }
-  methods <- unique(estimation_df$Method)
-  n_values <- sort(unique(estimation_df$n))
-
-  grDevices::pdf(out_file, width = 10, height = 8)
-  old_par <- graphics::par(mfrow = c(2, 2), mar = c(4, 4, 2, 1))
-  on.exit({
-    graphics::par(old_par)
-    grDevices::dev.off()
-  }, add = TRUE)
-
-  metrics <- c("L2", "MSE_beta")
-  for (metric in metrics) {
-    y_rng <- range(estimation_df[[metric]], na.rm = TRUE)
-    graphics::plot(NA, xlim = range(estimation_df$pi), ylim = y_rng, xlab = "pi", ylab = metric, main = metric)
-    for (m in seq_along(methods)) {
-      df_m <- estimation_df[estimation_df$Method == methods[m] & estimation_df$n == n_values[1], ]
-      graphics::lines(df_m$pi, df_m[[metric]], type = "b", lty = m, col = m)
-    }
-    graphics::legend("topright", legend = methods, col = seq_along(methods), lty = seq_along(methods), bty = "n")
-  }
-
-  if (nrow(inference_df)) {
-    for (metric in c("coverage", "mean_model_se")) {
-      y_rng <- range(inference_df[[metric]], na.rm = TRUE)
-      graphics::plot(NA, xlim = range(estimation_df$pi), ylim = y_rng, xlab = "pi", ylab = metric, main = metric)
-      for (m in seq_along(methods)) {
-        df_m <- inference_df[inference_df$Method == methods[m] & inference_df$n == n_values[1], ]
-        graphics::lines(df_m$pi, df_m[[metric]], type = "b", lty = m, col = m)
-      }
-      graphics::legend("topright", legend = methods, col = seq_along(methods), lty = seq_along(methods), bty = "n")
-    }
-  }
-}
-
-plot_sparse_selection <- function(selection_df, out_file) {
-  if (!nrow(selection_df)) {
-    stop("Selection summary is required.")
-  }
-  methods <- unique(selection_df$Method)
-  p_values <- sort(unique(selection_df$p))
-  metrics <- c("TPR", "FDR", "selected_size")
-
-  grDevices::pdf(out_file, width = 11, height = 8)
-  old_par <- graphics::par(mfrow = c(length(metrics), length(p_values)), mar = c(4, 4, 2, 1))
-  on.exit({
-    graphics::par(old_par)
-    grDevices::dev.off()
-  }, add = TRUE)
-
-  for (metric in metrics) {
-    for (p_cur in p_values) {
-      sub_df <- selection_df[selection_df$p == p_cur, ]
-      y_rng <- range(sub_df[[metric]], na.rm = TRUE)
-      graphics::plot(NA, xlim = range(sub_df$n), ylim = y_rng, xlab = "n", ylab = metric, main = paste("p =", p_cur))
-      for (m in seq_along(methods)) {
-        df_m <- sub_df[sub_df$Method == methods[m] & sub_df$Scenario == unique(sub_df$Scenario)[1], ]
-        graphics::lines(df_m$n, df_m[[metric]], type = "b", lty = m, col = m)
-      }
-      graphics::legend("topright", legend = methods, col = seq_along(methods), lty = seq_along(methods), bty = "n")
-    }
-  }
-}
-
 describe_main_text <- function() {
   data.frame(
     Scenario = c("A", "B", "C", "D"),
@@ -1451,7 +1373,7 @@ describe_main_text <- function() {
   )
 }
 
-build_main_text_configs <- function(n_grid = c(100, 200, 400)) {
+build_main_text_configs <- function(n_grid = c(100, 500, 1000)) {
   template <- list(
     A = list(
       scenario = "A",
@@ -1558,7 +1480,7 @@ build_main_text_configs <- function(n_grid = c(100, 200, 400)) {
 
 run_main_text <- function(
   outdir = file.path(getwd(), "paper_simulation_outputs"),
-  n_grid = c(100, 200, 400),
+  n_grid = c(100, 500, 1000),
   R_rep = 200,
   tau = 0.5,
   bootstrap_B = 20,
@@ -1657,7 +1579,7 @@ run_supp_contamination <- function(
   outdir = file.path(getwd(), "paper_simulation_outputs"),
   n_grid = c(100, 200, 400),
   pi_grid = c(0, 0.10, 0.20, 0.30),
-  R_rep = 300,
+  R_rep = 200,
   tau = 0.5,
   bootstrap_B = 20,
   robust_bootstrap_B = 6,
@@ -1831,18 +1753,11 @@ run_highdim_sparse <- function(
   invisible(result)
 }
 
-run_highdim_only <- function(
-  outdir = file.path(getwd(), "paper_simulation_outputs"),
-  ...
-) {
-  run_highdim_sparse(outdir = outdir, ...)
-}
-
-run_all_paper_simulations <- function(
+run_all_simulations <- function(
   outdir = file.path(getwd(), "paper_simulation_outputs"),
   run_main = TRUE,
   run_supp_contam = TRUE,
-  run_highdim = FALSE,
+  run_highdim = TRUE,
   main_args = list(),
   supp_contam_args = list(),
   highdim_args = list()
@@ -1871,25 +1786,6 @@ run_all_paper_simulations <- function(
   invisible(out)
 }
 
-run_manuscript <- function(
-  outdir = file.path(getwd(), "paper_simulation_outputs")
-) {
-  run_all_paper_simulations(
-    outdir = outdir,
-    main_args = list(
-      n_grid = c(100, 200, 400),
-      R_rep = 200,
-      bootstrap_B = 2,
-      robust_bootstrap_B = 2,
-      seed = 7307
-    ),
-    supp_contam_args = list(
-      n_grid = c(100, 200, 400),
-      pi_grid = c(0, 0.10, 0.20, 0.30),
-      R_rep = 200,
-      bootstrap_B = 2,
-      robust_bootstrap_B = 2,
-      seed = 8307
-    )
-  )
-}
+run_all_simulations(
+  outdir = "/Users/sky/Desktop/Manuscript/Quantile/simulation_outputs"
+)
