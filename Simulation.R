@@ -39,6 +39,12 @@ make_beta0 <- function(p, signal_pattern = c(1, -1, 0.7, 0.5), signal_scale = 1)
   beta0
 }
 
+hd <- run_highdim_sparse(
+  outdir = "/Users/Desktop/highdim_outputs",
+  R_rep = 200,
+  seed = 6207
+)
+
 toeplitz_cov <- function(p, rho_x) {
   idx <- seq_len(p)
   rho_x ^ abs(outer(idx, idx, "-"))
