@@ -1787,5 +1787,5 @@ run_all_simulations <- function(
 }
 
 run_all_simulations(
-  outdir = "/Users/sky/Desktop/Manuscript/Quantile/simulation_outputs"
+  outdir = "/Users/Desktop/simulation_outputs"
 )
